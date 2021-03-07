@@ -10,6 +10,7 @@ use Getopt::Std;
 use Socket;
 use Config;
 
+use lib '.';
 #use strict;
 #use warnings;
 my $SOCKET;
