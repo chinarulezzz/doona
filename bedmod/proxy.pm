@@ -114,6 +114,7 @@ sub getCommandarray {
         "Proxy-Connection: XAXAX\r\n\r\n",
         "Expect: XAXAX\r\n\r\n",
         "Range: XAXAX\r\n\r\n",
+        "Range: bytes=XAXAX-XAXAX\r\n\r\n",
         "Range: bytes=1-XAXAX\r\n\r\n",
         "Range: bytes=0-1,XAXAX\r\n",
         "Content-Length: XAXAX\r\n\r\n",
