@@ -1,41 +1,38 @@
 package bedmod::smtp;
+
+use strict;
+use warnings;
+#use diagnostics;
+
 use Socket;
 
 # This package is an extension to bed, to check
 # for smtp server vulnerabilities.
 
 sub new {
-    my $this = {};
-    bless $this;
-    return $this;
+    bless {};
 }
 
 sub init {
-    my $this = shift;
-    %special_cfg=@_;
+    my $self = shift;
+    my %args = @_;
 
-    $this->{proto}="tcp";
+    $self->{proto} = "tcp";
+    $self->{port}  = $args{p} || 25;
 
-    # check for missing args, set target and host
-    if ($special_cfg{'p'} eq "") { $this->{port}='25'; }
-    else { $this->{port} = $special_cfg{'p'}; }
+    $self->usage() and exit unless $args{u};
 
-    if ( $special_cfg{'u'} eq "") {
-        &usage();
-        exit(1);
-    }
-
-    # get info nessecairy for FTP
-    $this->{mail} = $special_cfg{'u'};
-    $this->{vrfy} = "HELP\r\n";
+    # get info necessary for SMTP
+    $self->{mail} = $args{u};
+    $self->{vrfy} = "HELP\r\n";
 }
 
 sub getQuit{
-    return("QUIT\r\n");
+    ("QUIT\r\n");
 }
 
 sub getLoginarray {
-    return(
+    (
         "XAXAX\r\n",
         "HELO XAXAX\r\n",
         "EHLO XAXAX\r\n",
@@ -44,59 +41,55 @@ sub getLoginarray {
 }
 
 sub getCommandarray {
-    my $this = shift;
+    my $self = shift;
 
     # the XAXAX will be replaced with the buffer overflow / format string
     # just comment them out if you don't like them..
-    @cmdArray = (
+    (
         "EXPN XAXAX\r\n",
         "MAIL FROM: XAXAX\r\n",
         "MAIL FROM: <XAXAX>\r\n",
-        "MAIL FROM: <$this->{mail}> XAXAX\r\n",
-        "MAIL FROM: <$this->{mail}> RET=XAXAX\r\n",
-        "MAIL FROM: <$this->{mail}> ENVID=XAXAX\r\n",
+        "MAIL FROM: <$self->{mail}> XAXAX\r\n",
+        "MAIL FROM: <$self->{mail}> RET=XAXAX\r\n",
+        "MAIL FROM: <$self->{mail}> ENVID=XAXAX\r\n",
         "ETRN XAXAX\r\n",
         "ETRN \@XAXAX\r\n",
-        "MAIL FROM: <$this->{mail}>\r\nRCPT TO: <XAXAX>\r\n",
-        "MAIL FROM: <$this->{mail}>\r\nRCPT TO: <$this->{mail}> XAXAX\r\n",
-        "MAIL FROM: <$this->{mail}>\r\nRCPT TO: <$this->{mail}> NOTIFY=XAXAX\r\n",
-        "MAIL FROM: <$this->{mail}>\r\nRCPT TO: <$this->{mail}> ORCPT=XAXAX\r\n",
+        "MAIL FROM: <$self->{mail}>\r\nRCPT TO: <XAXAX>\r\n",
+        "MAIL FROM: <$self->{mail}>\r\nRCPT TO: <$self->{mail}> XAXAX\r\n",
+        "MAIL FROM: <$self->{mail}>\r\nRCPT TO: <$self->{mail}> NOTIFY=XAXAX\r\n",
+        "MAIL FROM: <$self->{mail}>\r\nRCPT TO: <$self->{mail}> ORCPT=XAXAX\r\n",
         "HELP XAXAX\r\n",
         "VRFY XAXAX\r\n",
         "RCTP TO: XAXAX\r\n",
         "RCTP TO: <XAXAX>\r\n",
-        "RCPT TO: <$this->{mail}> XAXAX\r\n",
-        "RCPT TO: <$this->{mail}> NOTIFY=XAXAX\r\n",
-        "RCPT TO: <$this->{mail}> ORCPT=XAXAX\r\n",
+        "RCPT TO: <$self->{mail}> XAXAX\r\n",
+        "RCPT TO: <$self->{mail}> NOTIFY=XAXAX\r\n",
+        "RCPT TO: <$self->{mail}> ORCPT=XAXAX\r\n",
         "RSET XAXAX\r\n",
         "AUTH mechanism XAXAX\r\n",
         "DATA XAXAX\r\n",
         "DATA\r\nXAXAX\r\n.",
         "XAXAX\r\n"
-      );
-    return(@cmdArray);
+    );
 }
 
 sub getLogin {
-    my $this = shift;
-    @login = (
+    (
         "HELO doona.pl\r\n",
         "EHLO doona.pl\r\n",
     );
-    return(@login);
 }
 
-sub testMisc {
-    my $this = shift;
-    return();
-}
+sub testMisc {()}
 
 sub usage {
     print qq~ Parameters for the SMTP plugin:
-
-  -u <valid mail address at target host>
+    -u <valid mail address at target host>
 
 ~;
 }
 
 1;
+
+# vim:sw=4:ts=4:sts=4:et:cc=80
+# End of file.

@@ -1,48 +1,44 @@
 package bedmod::whois;
+
+use strict;
+use warnings;
+#use diagnostics;
+
 use Socket;
 
 # lame whois plugin :)
 
 # create a new instance of this object
 sub new {
-    my $this = {};
-    bless $this;
-    return $this;
+    bless {};
 }
 
 # initialise some parameters
 sub init {
-    my $this = shift;
-    %special_cfg=@_;
+    my $self = shift;
+    my %args = @_;
 
-    # Set protocol tcp/udp
-    $this->{proto} = "tcp";
-
-    if ($special_cfg{'p'} eq "") { $this->{port}='43'; }
-    else { $this->{port} = $special_cfg{'p'}; }
-    $this->{sport} = 0;
-    $this->{vrfy} = "";
+    $self->{proto} = 'tcp';
+    $self->{port}  = $args{p} || 43;
+    $self->{sport} = 0;
+    $self->{vrfy}  = '';
 }
 
 # how to quit ?
 sub getQuit {
-    return("");
+    ('');
 }
 
 # what to test without doing a login before
 sub getLoginarray {
-    my $this = shift;
-    @Loginarray = ("");
-    return (@Loginarray);
+    ('');
 }
 
 # which commands does this protocol know ?
 sub getCommandarray {
-    my $this = shift;
-
     # the XAXAX will be replaced with the buffer overflow / format string
     # place every command in this array you want to test
-    @cmdArray = (
+    (
         "XAXAX\r\n",
         "?XAXAX\r\n",
         "!XAXAX\r\n",
@@ -50,23 +46,20 @@ sub getCommandarray {
         "XAXAX...\r\n",
         "*XAXAX\r\n",
         "XAXAX.tld\r\n",
-        "domain.XAXAX\r\n"
-      );
-    return(@cmdArray);
+        "domain.XAXAX\r\n",
+    );
 }
 
 # what to send to login ?
 sub getLogin {
-    my $this = shift;
-    return("");
+    ('');
 }
 
-sub testMisc {
-    my $this = shift;
-    return();
-}
+sub testMisc {()}
 
-sub usage {
-}
+sub usage {}
 
 1;
+
+# vim:sw=4:ts=4:sts=4:et:cc=80
+# End of file.

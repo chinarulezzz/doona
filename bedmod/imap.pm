@@ -1,4 +1,9 @@
 package bedmod::imap;
+
+use strict;
+use warnings;
+#use diagnostics;
+
 use Socket;
 
 # imap plugin for bed2
@@ -6,66 +11,56 @@ use Socket;
 # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 # create a new instance of this object
 sub new {
-    my $this = {};
-
-    # imap defines
-    $this->{user} = undef;
-    $this->{pass} = undef;
-    bless $this;
-    return $this;
+    bless {
+        username => '',
+        password => '',
+    };
 }
 
 # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 # initialise some parameters
 sub init {
-    my $this = shift;
-    %special_cfg = @_;
+    my $self = shift;
+    my %args = @_;
 
-    # Set protocol tcp/udp
-    $this->{proto} = "tcp";
+    $self->{proto} = "tcp";
+    $self->{port}  = $args{p} || 143;
 
-    if   ( $special_cfg{'p'} eq "" ) { $this->{port} = '143'; }
-    else                             { $this->{port} = $special_cfg{'p'}; }
+    $self->usage() and exit unless $args{u} and $args{v};
 
-    if ( ( $special_cfg{'u'} eq "" ) || ( $special_cfg{'v'} eq "" ) ) {
-        &usage();
-        exit(1);
-    }
-
-    $this->{user} = $special_cfg{'u'};
-    $this->{pass} = $special_cfg{'v'};
+    $self->{username} = $args{u};
+    $self->{password} = $args{v};
 
     # how can bed check that the server is still alive
-    $this->{vrfy} = "A001 NOOP\r\n";
+    $self->{vrfy} = "A001 NOOP\r\n";
 }
 
 # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 # how to quit ?
 sub getQuit {
-    return ("A001 LOGOUT\r\n");
+    ("A001 LOGOUT\r\n");
 }
 
 # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 # what to test without doing a login before
 # ..mainly the login stuff *g*
 sub getLoginarray {
-    my $this = shift;
-    @Loginarray = (
+    my $self = shift;
+    (
         "A001 AUTHENTICATE XAXAX\r\n",
         "A001 LOGIN XAXAX\r\n",
-        "A001 LOGIN $this->{user} XAXAX\r\n"
+        "A001 LOGIN $self->{username} XAXAX\r\n"
     );
-    return (@Loginarray);
 }
 
 # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 # which commands does this protocol know ?
 sub getCommandarray {
-    my $this = shift;
+    my $self = shift;
 
     # the XAXAX will be replaced with the buffer overflow / format string
     # place every command in this array you want to test
-    @cmdArray = (
+    (
         "A001 CREATE myTest\r\n",    # just for testing...
         "FXXZ CHECK XAXAX\r\n",
         "LIST XAXAX\r\n",
@@ -102,27 +97,21 @@ sub getCommandarray {
         "A001 MYRIGHTS XAXAX\r\n",
         "A001 XAXAX\r\n"
     );
-    return (@cmdArray);
 }
 
 # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 # what to send to login ?
 sub getLogin {    # login procedure
-    my $this = shift;
-    @login = ("A001 LOGIN $this->{user} $this->{pass}\r\n");
-    return (@login);
+    my $self = shift;
+    ("A001 LOGIN $self->{username} $self->{password}\r\n");
 }
 
 # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 # here we can test everything besides buffer overflows and format strings
-sub testMisc {
-    my $this = shift;
-    return ();
-}
+sub testMisc {()}
 
 sub usage {
     print qq~ Parameters for the imap plugin:
-
     -u <username>
     -v <password>
 
@@ -130,3 +119,6 @@ sub usage {
 }
 
 1;
+
+# vim:sw=4:ts=4:sts=4:et:cc=80
+# End of file.

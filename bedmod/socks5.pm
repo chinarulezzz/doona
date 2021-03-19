@@ -1,4 +1,9 @@
 package bedmod::socks5;
+
+use strict;
+use warnings;
+#use diagnostics;
+
 use Socket;
 
 # socks5 plugin
@@ -8,102 +13,95 @@ use Socket;
 # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 # create a new instance of this object
 sub new {
-    my $this = {};
-    $this->{username} = undef;
-    $this->{password} = undef;
-    bless $this;
-    return $this;
+    my $self = {
+        username => '',
+        password => '',
+    };
+
+    bless $self;
 }
 
 # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 # initialise some parameters
 sub init {
-    my $this = shift;
-    %special_cfg = @_;
+    my $self = shift;
+    my %args = @_;
 
-    # Set protocol tcp/udp
-    $this->{proto} = "tcp";
+    $self->{proto} = "tcp";
+    $self->{port}  = $args{p} || 1080;
+    $self->{sport} = 0;
+    $self->{vrfy}  = "";
 
-    # check for missing args, set target and host
-    # every module has to do this
-    if   ( $special_cfg{'p'} eq "" ) { $this->{port} = '1080'; }
-    else                             { $this->{port} = $special_cfg{'p'}; }
-    $this->{sport} = 0;
-    $this->{vrfy}  = "";
+    $self->usage() and exit unless $args{u} and $args{v};
 
-    if ( ( $special_cfg{'u'} eq "" ) || ( $special_cfg{'v'} eq "" ) ) {
-        &usage();
-        exit(1);
-    }
-
-    $this->{username} = $special_cfg{'u'};
-    $this->{password} = $special_cfg{'v'};
+    $self->{username} = $args{u};
+    $self->{password} = $args{v};
 }
 
 # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 # how to quit ?
 sub getQuit {
-    return ("");
+    ("");
 }
 
 # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 # what to test without doing a login before
 # ..mainly the login stuff *g*
 sub getLoginarray {
-    my $this = shift;
-    @Loginarray = ("");
-    return (@Loginarray);
+    ("");
 }
 
 # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 # which commands does this protocol know ?
 sub getCommandarray {
-    my $this = shift;
-
     # all there is to test is the username as far as it seems...
-    @cmdArray = (
+    (
         "XAXAX\n",
-
         # if the programmer is clever enough he always receives the packet
         # in a buffer which is bigger than ~0x128 :)
         "\x05\x01\x00\x04\xFF\x10"
         ,    # check for buffer access which should give a gpf
         "\x05\x01\x00\x04\x50\x10"    # same here different value... lame :)
-
     );
-    return (@cmdArray);
 }
 
 # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 # what to send to login ?
 sub getLogin {                        # login procedure
-    my $this = shift;
-    $count1 = length( $this->{username} );
-    $count2 = length( $this->{password} );
+    my $self   = shift;
 
-    @login = (
+    my $username = $self->{username} || '';
+    my $password = $self->{password} || '';
 
+    my $username_len = length($self->{username}) || 0;
+    my $password_len = length($self->{password}) || 0;
+
+    (
         #protocol version #nr. of authentication methods #username+password
         "\x05\x01\x02",
 
         #protocol #username len #username #pass len #password
-        "\x05$count1$this->{username}$count2$this->{password}",
+        "\x05"
+            . $username_len
+            . $username
+            . $password_len
+            . $password,
     );
-    return (@login);
 }
 
 # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 # here we can test everything besides buffer overflows and format strings
-sub testMisc {
-    my $this = shift;
-    return ();
-}
+sub testMisc {()}
 
 sub usage {
     print qq~ Parameters for the Socks5 plugin:
- -u <username>
- -v <password>
+    -u <username>
+    -v <password>
+
 ~;
 }
 
 1;
+
+# vim:sw=4:ts=4:sts=4:et:cc=80
+# End of file.

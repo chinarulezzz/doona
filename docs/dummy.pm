@@ -1,45 +1,44 @@
 package bedmod::dummy;
+
 use Socket;
 
 # Example plugin for a doona module
 # Replace the use of "dummy" with your module name
 # Copy the file to bedmod as <modulename.pm>
-#
 
 # create a new instance of this object
 sub new{
-    my $this = {};
+    my $self = {};
 
     # define everything you might need
-    $this->{something} = undef;
-    bless $this;
-    return $this;
+    $self->{something} = undef;
+
+    bless $self;
+    return $self;
 }
 
 # initialise some parameters
 sub init{
-    my $this = shift;
-    %special_cfg=@_;
+    my $self = shift;
+    my %args = @_;
 
     # Set protocol tcp/udp
-    $this->{proto} = "tcp";
+    $self->{proto} = "tcp";
 
     # insert your default port here...
-    if ($special_cfg{'p'} eq "") { $this->{port}='110'; }
-      else { $this->{port} = $special_cfg{'p'}; }
+    $self->{port}  = $args{p} || 110;
 
-    # verify you got everything you need,
-    # $special_cfg will provide you the commandline
-    # switches from u, v, w and x
-    if ( $special_cfg{'u'} eq "") {
-        &usage;
-    }
+    # verify you got everything you need, $args will provide you the
+    # commandline switches from u, v, w and x
+
+    &usage unless $args{u};
 
     # set info necessary for for your module..
-    $this->{u} = $special_cfg{'u'};
+    $self->{user} = $args{u};
 
     # check that the server is still alive
-    die "Server failed health check!\n" unless($this->health_check());
+    die "Server failed health check!\n"
+    unless $self->health_check();
 }
 
 # Perform a common action such as authenticating here
@@ -53,61 +52,63 @@ sub health_check {
 # how to quit ?
 sub getQuit{
     # what to send to close the connection the right way
-    return("QUIT\r\n");
+    (
+        "QUIT\r\n"
+    );
 }
 
 # what to test without authenticating
 # Typically the login stuff
 sub getLoginarray {
-    my $this = shift;
-    @Loginarray = (
+    my $self = shift;
+    (
         "USER XAXAX\r\n",
-        "USER $this->{username}\r\nPASS XAXAX\r\n"
+        "USER $self->{user}\r\nPASS XAXAX\r\n"
     );
-    return (@Loginarray);
 }
-
 
 # which commands does this protocol know ?
 sub getCommandarray {
-    my $this = shift;
+    my $self = shift;
+
     # the XAXAX will be replaced with the buffer overflow / format string data
     # place every command in this array you want to test
-    @cmdArray = (
+    (
         "foo XAXAX\r\n",
         "bar XAXAX\r\n",
         "XAXAX\r\n"
     );
-    return(@cmdArray);
 }
 
 
 # what to send to login ?
 sub getLogin{    # login procedure
-    my $this = shift;
-    @login = (
+    my $self = shift;
+
+    (
         "Hi, I am a dummy\r\n",
         "This is my pass: foobar\r\n"
     );
-    return(@login);
 }
 
 # here we can test everything besides buffer overflows and format strings
 sub testMisc{
-    # Insert your favourite directory traversal bug here :)
-    my $this = shift;
-    return();
+    my $self = shift;
+    (
+        # Insert your favourite directory traversal bug here :)
+    );
 }
 
 # Module specific help goes here
 # Leave an empty sub if there is no module specific help
 sub usage {
-    print qq~
-  Parameters for the dummy plugin:
+    print qq~ %dummy% module specific options:
+-u <description what the user should provide>
 
-    -u <description what the user should provide>
 ~;
-exit(1);
 }
 
 1;
+
+# vim:sw=4:ts=4:sts=4:et:cc=80
+# End of file.

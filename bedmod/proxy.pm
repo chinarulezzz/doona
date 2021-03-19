@@ -1,63 +1,68 @@
 package bedmod::proxy;
+
+use strict;
+use warnings;
+#use diagnostics;
+
 use Socket;
 
-# This package is an extension to bed, to check
-# for http proxy server vulnerabilities.
+# This package is an extension to bed, to check for http proxy server
+# vulnerabilities.
 
 sub new {
-    my $this = {};
-    bless $this;
-    return $this;
+    bless {};
 }
 
 sub init {
-    my $this = shift;
-    %special_cfg=@_;
+    my $self = shift;
+    my %args = @_;
 
-    $this->{proto}="tcp";
-    $this->{healthy}=undef;
+    $self->{proto}   = 'tcp';
+    $self->{healthy} = '';
+    $self->{port}    = $args{p} || 8080;
 
-    if ($special_cfg{'p'} eq "") {
-        $this->{port}='8080';
-    } else {
-        $this->{port} = $special_cfg{'p'};
-    }
+    return if $args{d};
 
-    if ($special_cfg{'d'}) { return; }
-    die "Proxy server failed health check!\n" unless($this->health_check());
-#    $iaddr = inet_aton($this->{target})             || die "Unknown host: $this->{target}\n";
-#    $paddr = sockaddr_in($this->{port}, $iaddr)     || die "getprotobyname: $!\n";
-#    $proto = getprotobyname('tcp')                  || die "getprotobyname: $!\n";
-#    socket(SOCKET, PF_INET, SOCK_STREAM, $proto)    || die "socket: $!\n";
-#    connect(SOCKET, $paddr)                         || die "connection attempt failed: $!\n";
-#    send(SOCKET, "HEAD / HTTP/1.0\r\n\r\n", 0)      || die "HTTP request failed: $!\n";
+    die "\nProxy server failed health check!\n"
+        unless $self->health_check();
 }
 
 sub health_check {
-    my $this = shift;
-    $iaddr = inet_aton($this->{target})             || die "Unknown host: $this->{target}\n";
-    $paddr = sockaddr_in($this->{port}, $iaddr)     || die "getprotobyname: $!\n";
-    $proto = getprotobyname('tcp')                  || die "getprotobyname: $!\n";
-    socket(SOCKET, PF_INET, SOCK_STREAM, $proto)    || die "socket: $!\n";
-    connect(SOCKET, $paddr)                         || die "connection attempt failed: $!\n";
-    send(SOCKET, "HEAD / HTTP/1.0\r\n\r\n", 0)      || die "HTTP request failed: $!\n";
+    my $self = shift;
+    
+    my $iaddr = inet_aton($self->{target})
+        || die "\nUnknown host: $self->{target}\n";
+
+    my $paddr = sockaddr_in($self->{port}, $iaddr)
+        || die "\ngetprotobyname: $!\n";
+
+    my $proto = getprotobyname('tcp')
+        || die "\ngetprotobyname: $!\n";
+
+    socket(SOCKET, PF_INET, SOCK_STREAM, $proto)
+        || die "\nsocket: $!\n";
+
+    connect(SOCKET, $paddr)
+        || die "\nconnection attempt failed: $!\n";
+
+    send(SOCKET, "HEAD / HTTP/1.0\r\n\r\n", 0)
+        || die "\nHTTP request failed: $!\n";
+
     my $resp = <SOCKET>;
-    if (!$this->{healthy}) {
-          if ($resp =~ /HTTP/) {
-              $this->{healthy}=$resp;
-          }
-          # print "Set healthy: $resp";
+
+    if (!$self->{healthy}) {
+        $self->{healthy} = $resp if $resp =~ /HTTP/;
+        # print "Set healthy: $resp";
     }
-    return $resp =~ m/$this->{healthy}/;
+    return $resp =~ m/$self->{healthy}/;
 }
 
 sub getQuit {
-    return("\r\n\r\n");
+    ("\r\n\r\n");
 }
 
 sub getLoginarray {
-    my $this = shift;
-    @Loginarray = (
+    (
         "XAXAX\r\n\r\n",
         "XAXAX http://127.0.0.2/ HTTP/1.0\r\n\r\n",
         "HEAD http://XAXAX/ HTTP/1.0\r\n\r\n",
@@ -72,14 +77,11 @@ sub getLoginarray {
         "CONNECT XAXAX:80 HTTP/1.0\r\n\r\n",
         "CONNECT 127.0.0.2:XAXAX HTTP/1.0\r\n\r\n",
         "CONNECT 127.0.0.2:80 XAXAX\r\n\r\n",
-      );
-    return (@Loginarray);
+    );
 }
 
 sub getCommandarray {
-    my $this = shift;
-
-    @cmdArray = (
+    (
         "XAXAX: XAXAX\r\n\r\n",
         "User-Agent: XAXAX\r\n\r\n",
         "Host: XAXAX\r\n\r\n",
@@ -118,32 +120,33 @@ sub getCommandarray {
         "Cookie: XAXAX\r\n\r\n",
         "TE: XAXAX\r\n\r\n",
         "Upgrade: XAXAX\r\nConnection: upgrade\r\n\r\n",
-      );
-    return(@cmdArray);
+    );
 }
 
 sub getLogin {
-    my $this = shift;
-    @login = (
+    (
         "GET http://127.0.0.2/ HTTP/1.0\r\n",
         "POST http://127.0.0.2/ HTTP/1.0\r\n",
         "CONNECT 127.0.0.1:80 HTTP/1.1\r\n",
         "GET http://127.0.0.2/ HTTP/1.1\r\n",
         "POST http://127.0.0.2/ HTTP/1.1\r\n",
         "CONNECT 127.0.0.2:80 HTTP/1.0\r\n",
-      );
-    return(@login);
+    );
 }
 
-sub testMisc { #Put your corner case tests here...
-    my $this = shift;
-    @cmdArray = (
-        "GET / HTTP/1.0\r\n" . "Lotsofheaders: XAXAX\r\n" x 1024 . "\r\n"
-      );
-    return(@cmdArray);
+sub testMisc {
+    (
+        "GET / HTTP/1.0\r\n"
+            . "LotsOfHeaders: XAXAX\r\n" x 1024
+            . "\r\n",
+
+        "GET http:// HTTP/1.1\r\nRange: bytes=10-1\r\n\r\n",
+    );
 }
 
-sub usage {
-}
+sub usage {}
 
 1;
+
+# vim:sw=4:ts=4:sts=4:et:cc=80
+# End of file.

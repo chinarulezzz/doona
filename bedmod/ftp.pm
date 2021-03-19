@@ -1,101 +1,137 @@
 package bedmod::ftp;
+
+use strict;
+use warnings;
+#use diagnostics;
+
 use Socket;
 
 # This package is an extension to bed, to check
 # for ftp server vulnerabilities.
 
 sub new {
-    my $this = {};
-    $this->{'healthy'}    = undef;
-    $this->{username}     = 'anonymous'; # specific for just this
-    $this->{password}     = 'user@this.bed'; # module
-    bless $this;
-    return $this;
+    my $self = {
+        healthy  => '',
+        username => 'anonymous',
+        password => 'user@this.bed',
+    };
+
+    bless $self;
 }
 
 sub init {
-    my $this = shift;
-    %special_cfg=@_;
+    my $self = shift;
+    my %args = @_;
 
-    # Specify protocol to use
-    $this->{proto}="tcp";
-    # check for missing args, set target and host
-    if ($special_cfg{'p'} eq "") { $this->{port}='21'; }
-    else { $this->{port} = $special_cfg{'p'}; }
+    $self->{proto} = "tcp";
+    $self->{port}  = $args{p} || 21;
 
-    # get info nessecairy for FTP
-    $this->{username} = $special_cfg{'u'} if $special_cfg{'u'};
-    $this->{password} = $special_cfg{'v'} if $special_cfg{'v'};
-    $this->{vrfy} = "PWD\r\n";
+    $self->{username} = $args{u} if $args{u};
+    $self->{password} = $args{v} if $args{v};
+    $self->{vrfy}     = "PWD\r\n";
 
     # let's see if we got a correct login (skip if dump mode is set)
-    if ($special_cfg{'d'}) { return; }
-    die "FTP server failed health check!\n" unless($this->health_check());
-    $iaddr = inet_aton($this->{target})             || die "Unknown host: $this->{target}\n";
-    $paddr = sockaddr_in($this->{port}, $iaddr)     || die "getprotobyname: $!\n";
-    $proto = getprotobyname('tcp')                  || die "getprotobyname: $!\n";
-    socket(SOCKET, PF_INET, SOCK_STREAM, $proto)    || die "socket: $!\n";
-    connect(SOCKET, $paddr)                         || die "connection attempt failed: $!\n";
-    send(SOCKET, "USER $this->{username}\r\n", 0)   || die "USER failed: $!\n";
-    $recvbuf = <SOCKET>;
-    sleep(1);                                       # some ftp's need some time to reply
-    send(SOCKET, "PASS $this->{password}\r\n", 0)   || die "PASS failed: $!\n";
+    return if $args{d};
+
+    die "\nFTP server failed health check!\n"
+        unless $self->health_check();
+
+    my $iaddr = inet_aton($self->{target})
+        || die "\nUnknown host: $self->{target}\n";
+
+    my $paddr = sockaddr_in($self->{port}, $iaddr)
+        || die "\ngetprotobyname: $!\n";
+
+    my $proto = getprotobyname('tcp')
+        || die "\ngetprotobyname: $!\n";
+
+    socket(SOCKET, PF_INET, SOCK_STREAM, $proto)
+        || die "\nsocket: $!\n";
+
+    connect(SOCKET, $paddr)
+        || die "\nconnection attempt failed: $!\n";
+
+    send(SOCKET, "USER $self->{username}\r\n", 0)
+        || die "\nUSER failed: $!\n";
+
+    my $recvbuf = <SOCKET>;
+    sleep 1; # some ftp's need some time to reply
+
+    send(SOCKET, "PASS $self->{password}\r\n", 0)
+        || die "\nPASS failed: $!\n";
+
     do {
         $recvbuf = <SOCKET>;
-        #print ($recvbuf);
-        if ( $recvbuf =~ "530" ){
-            print ("Username or Password incorrect, can't login\n");
-            exit(1);
+        print $recvbuf;
+        if ($recvbuf =~ "530") {
+            print "\nUsername or Password incorrect, can't login\n";
+            exit 1;
         }
-        sleep(0.2);
-      } until ( $recvbuf =~ "230" );
+        sleep 0.2;
+    } until ($recvbuf =~ "230");
+
     send(SOCKET, "QUIT\r\n", 0);
-    close(SOCKET);
+    close SOCKET;
 }
 
 sub health_check {
-    my $this = shift;
-    $iaddr = inet_aton($this->{target})             || die "Unknown host: $this->{target}\n";
-    $paddr = sockaddr_in($this->{port}, $iaddr)     || die "getprotobyname: $!\n";
-    $proto = getprotobyname('tcp')                  || die "getprotobyname: $!\n";
-    socket(SOCKET, PF_INET, SOCK_STREAM, $proto)    || die "socket: $!\n";
-    connect(SOCKET, $paddr)                         || die "connection attempt failed: $!\n";
-    do { 
-      $recv=<SOCKET>;
-      sleep(0.2);
-    } until $recv =~ /^220/;
+    my $self = shift;
+
+    my $iaddr = inet_aton($self->{target})
+        || die "\nUnknown host: $self->{target}\n";
+
+    my $paddr = sockaddr_in($self->{port}, $iaddr)
+        || die "\ngetprotobyname: $!\n";
+
+    my $proto = getprotobyname('tcp')
+        || die "\ngetprotobyname: $!\n";
+
+    socket(SOCKET, PF_INET, SOCK_STREAM, $proto)
+        || die "\nsocket: $!\n";
+
+    connect(SOCKET, $paddr)
+        || die "\nconnection attempt failed: $!\n";
+
+    my $recv;
+    do {
+        $recv = <SOCKET>;
+        sleep 0.2;
+    } until ($recv =~ /^220/);
+
     send(SOCKET, "PASS\r\n", 0);
-    $recv=<SOCKET>;
-    if (!$this->{'healthy'}) {
-        $this->{'healthy'} = $recv if ($recv =~ /^\d\d\d/);
+
+    $recv = <SOCKET>;
+
+    if (!$self->{healthy}) {
+        $self->{healthy} = $recv if $recv =~ /^\d\d\d/;
     }
-    return $recv =~ /^$this->{'healthy'}$/;
+    return $recv =~ /^$self->{healthy}$/;
 }
 
 sub getQuit {
-    return("QUIT\r\n");
+    ("QUIT\r\n");
 }
 
 sub getLoginarray {
-    my $this = shift;
-    @Loginarray = (
+    my $self = shift;
+    (
         "XAXAX\r\n",
         "USER XAXAX\r\n",
         "USER XAXAX\r\nPASS password\r\n",
         "USER anonymous\r\nPASS XAXAX\r\n",
-        "USER XAXAX\r\nPASS password\r\nUSER $this->{username}\r\nPASS XAXAX\r\n",
-        "USER $this->{username}\r\nPASS XAXAX\r\n",
+
+        "USER XAXAX\r\nPASS password\r\nUSER "
+            . "$self->{username}\r\nPASS XAXAX\r\n",
+
+        "USER $self->{username}\r\nPASS XAXAX\r\n",
         "PASS XAXAX\r\n"
-      );
-    return (@Loginarray);
+    );
 }
 
 sub getCommandarray {
-    my $this = shift;
-
     # the XAXAX will be replaced with the buffer overflow / format string
     # just comment them out if you don't like them..
-    @cmdArray = (
+    (
         "XAXAX\r\n",
         "XAXAX 123\r\n",
         "ABOR XAXAX\r\n",
@@ -193,54 +229,90 @@ sub getCommandarray {
         "XRSQ XAXAX\r\n",
         "XSEM XAXAX\r\n",
         "XSEN XAXAX\r\n",
-      );
-    return(@cmdArray);
+    );
 }
 
-sub getLogin {       # login procedure
-    my $this = shift;
-    @login = ("USER $this->{username}\r\nPASS $this->{password}\r\n");
-    return(@login);
+sub getLogin {    # login procedure
+    my $self = shift;
+    ("USER $self->{username}\r\nPASS $self->{password}\r\n");
 }
 
 sub testMisc {
-    my $this = shift;
-    return; # Directory traversal code is buggy an not really what I want
-    # test for bof in login / user ?
-    # test for the availability to abuse this host for portscanning ?
+    my $self = shift;
+    return;    # Directory traversal code is buggy an not really what I want
+               # test for bof in login / user ?
+               # test for the availability to abuse this host for portscanning ?
 
     # test for possible directory traversal bugs...
-    print ("*Directory traversal\n");
+    print "*Directory traversal\n";
 
-    @traversal = ("...", "%5c..%5c", ,"%5c%2e%2e%5c", "/././..", "/...", "/......", "\\...", "...\\", "....", "*", "\\*", "\\....", "*\\\\.....", "/..../", "/../../../", "\\..\\..\\..\\", "\@/..\@/..");
-    foreach $Directory (@traversal){
-        $iaddr = inet_aton($this->{target})             || die "Unknown host: $this->{target}\n";
-        $paddr = sockaddr_in($this->{port}, $iaddr)     || die "getprotobyname: $!\n";
-        $proto = getprotobyname('tcp')                  || die "getprotobyname: $!\n";
-        socket(SOCKET, PF_INET, SOCK_STREAM, $proto)    || die "socket: $!\n";
-        connect(SOCKET, $paddr)                         || die "connection attempt failed: $!\n";
-        send(SOCKET, "USER $this->{username}\r\n", 0)   || die "USER failed: $!\n";
-        sleep(2); # some ftp's need some time to reply
-        $recvbuf = <SOCKET>;
-        send(SOCKET, "PASS $this->{password}\r\n", 0)   || die "PASS failed: $!\n";
-        sleep(2); # some ftp's need some time to reply
-        $recvbuf = <SOCKET>                             || die "Login failed $!\n";
-        send(SOCKET, "PWD\r\n", 0);                 # get old directory
-        sleep(1);
-        $curDir = <SOCKET>;
-        send(SOCKET, "CWD $Directory\r\n", 0);      # send the traversal string
-        # clear the buffer, by waiting for :
-        # 501 550 250 553
-        do { $recvbuf = <SOCKET>; } while( ($recvbuf !~ /550/) && ($recvbuf !~ /250/) && ($recvbuf !~ /553/) && ($recvbuf !~ /501/)); # receive answer
-        send(SOCKET, "PWD\r\n", 0);                 # get new directory
-        $newDir = <SOCKET>;
+    my @traversal = (
+        "...",            "%5c..%5c",,  "%5c%2e%2e%5c",
+        "/././..",        "/...",       "/......", "\\...",
+        "...\\",          "....",       "*",       "\\*",
+        "\\....",         "*\\\\.....", "/..../",  "/../../../",
+        "\\..\\..\\..\\", "\@/..\@/.."
+    );
+    for my $Directory (@traversal) {
+        my $iaddr = inet_aton($self->{target})
+            || die "\nUnknown host: $self->{target}\n";
+
+        my $paddr = sockaddr_in($self->{port}, $iaddr)
+            || die "\ngetprotobyname: $!\n";
+
+        my $proto = getprotobyname('tcp')
+            || die "\ngetprotobyname: $!\n";
+
+        socket(SOCKET, PF_INET, SOCK_STREAM, $proto)
+            || die "\nsocket: $!\n";
+
+        connect(SOCKET, $paddr)
+            || die "\nconnection attempt failed: $!\n";
+
+        send(SOCKET, "USER $self->{username}\r\n", 0)
+            || die "\nUSER failed: $!\n";
+
+        sleep 2; # some ftp's need some time to reply
+
+        my $recvbuf = <SOCKET>;
+
+        send(SOCKET, "PASS $self->{password}\r\n", 0)
+            || die "\nPASS failed: $!\n";
+
+        sleep 2; # some ftp's need some time to reply
+
+        $recvbuf = <SOCKET>
+            || die "\nLogin failed $!\n";
+
+        send(SOCKET, "PWD\r\n", 0); # get old directory
+
+        sleep 1;
+
+        my $curDir = <SOCKET>;
+
+        send(SOCKET, "CWD $Directory\r\n", 0); # send the traversal string
+
+        # clear the buffer, by waiting for :  501 550 250 553
+        do {
+            $recvbuf = <SOCKET>;
+        } while (($recvbuf !~ /550/)
+            &&   ($recvbuf !~ /250/)
+            &&   ($recvbuf !~ /553/)
+            &&   ($recvbuf !~ /501/)); # receive answer
+
+        send(SOCKET, "PWD\r\n", 0); # get new directory
+
+        my $newDir = <SOCKET>;
 
         # compare the directories, and report a problem if they are not equal
-        if ( $curDir ne $newDir ){ print ("Directory Traversal ($curDir => $newDir) possible with $Directory \n"); }
-        send(SOCKET,"QUIT\r\n", 0);  # logout
-        close (SOCKET);              # close connection
+        if ($curDir ne $newDir) {
+            print "Directory Traversal ($curDir => $newDir) " .
+                  "possible with $Directory \n";
+        }
+        send(SOCKET, "QUIT\r\n", 0);    # logout
+        close SOCKET;                   # close connection
     }
-    return();
+    return ();
 }
 
 sub usage {
@@ -252,3 +324,6 @@ sub usage {
 }
 
 1;
+
+# vim:sw=4:ts=4:sts=4:et:cc=80
+# End of file.

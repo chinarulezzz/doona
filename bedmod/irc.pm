@@ -1,33 +1,33 @@
 package bedmod::irc;
+
+use strict;
+use warnings;
+#use diagnostics;
+
 use Socket;
 
 # This package is an extension to bed, to check
 # for irc server vulnerabilities.
 
 sub new {
-    my $this = {};
-    bless $this;
-    return $this;
+    bless {};
 }
 
 sub init {
-    my $this = shift;
-    %special_cfg=@_;
+    my $self = shift;
+    my %args = @_;
 
-    $this->{proto}="tcp";
-
-    if ($special_cfg{'p'} eq "") { $this->{port}='6667'; }
-    else { $this->{port} = $special_cfg{'p'}; }
-    $this->{vrfy} = "uk\r\n"; # server should reply with unknown command
+    $self->{proto} = "tcp";
+    $self->{port}  = $args{p} || 6667;
+    $self->{vrfy}  = "uk\r\n"; # server should reply with unknown command
 }
 
 sub getQuit {
-    return("QUIT\r\n");
+    ("QUIT\r\n");
 }
 
 sub getLoginarray {
-    my $this = shift;
-    @Loginarray = (
+    (
         "XAXAX\r\n",
         "USER XAXAX 0 cc :dd\r\n",
         "USER aa XAXAX cc :dd\r\n",
@@ -45,16 +45,13 @@ sub getLoginarray {
         "SERVER XAXAX bb cc\r\n",
         "SERVER aa XAXAX cc\r\n",
         "SERVER aa bb XAXAX\r\n",
-      );
-    return (@Loginarray);
+    );
 }
 
 sub getCommandarray {
-    my $this = shift;
-
     # the XAXAX will be replaced with the buffer overflow / format string
     # just comment them out if you don't like them..
-    @cmdArray = (
+    (
         "XAXAX\r\n",
         "NICK XAXAX\r\n",
         "JOIN XAXAX\r\n",
@@ -118,21 +115,18 @@ sub getCommandarray {
         "WALLOPS XAXAX\r\n",
         "USERHOST XAXAX\r\n",
         "ISON XAXAX\r\n"
-      );
-    return(@cmdArray);
+    );
 }
 
 sub getLogin {
-    my $this = shift;
-    @login = ("USER aaa bbb ccc :ddd\r\n", "NICK EEEEEE\r\n");
-    return(@login);
+    ("USER aaa bbb ccc :ddd\r\n", "NICK EEEEEE\r\n");
 }
 
-sub testMisc {
-    return();
-}
+sub testMisc {()}
 
-sub usage {
-}
+sub usage {}
 
 1;
+
+# vim:sw=4:ts=4:sts=4:et:cc=80
+# End of file.

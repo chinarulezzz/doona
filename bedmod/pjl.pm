@@ -1,4 +1,9 @@
 package bedmod::pjl;
+
+use strict;
+use warnings;
+#use diagnostics;
+
 use Socket;
 
 # Plugin to check PJL Printer
@@ -10,50 +15,39 @@ use Socket;
 # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 # create a new instance of this object
 sub new {
-    my $this = {};
-    bless $this;
-    return $this;
+    bless {};
 }
 
 # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 # initialise some parameters
 sub init {
-    my $this = shift;
-    %special_cfg = @_;
+    my $self = shift;
+    my %args = @_;
 
-    # Set protocol tcp/udp
-    $this->{proto} = "tcp";
-
-    # check for missing args, set target and host
-    if   ( $special_cfg{'p'} eq "" ) { $this->{port} = '9100'; }
-    else                             { $this->{port} = $special_cfg{'p'}; }
-
-    $this->{vrfy} = "";
+    $self->{proto} = 'tcp';
+    $self->{port}  = $args{p} || 9100;
+    $self->{vrfy}  = '';
 }
 
 # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 # how to quit ?
 sub getQuit {
-    return ("\33%-12345X\n");
+    ("\33%-12345X\n");
 }
 
 # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 # we got no login procedure...
 sub getLoginarray {
-    my $this = shift;
-    @Loginarray = ("");
-    return (@Loginarray);
+    ('');
 }
 
 # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 # which commands does this protocol know ?
 sub getCommandarray {
-    my $this = shift;
-
     # the XAXAX will be replaced with the buffer overflow / format string
     # here we go with our commands
-    $PI       = "\33%-12345X\@PJL";    #  \n\@PJL
-    @cmdArray = (
+    my $PI = "\33%-12345X\@PJL";    #  \n\@PJL
+    (
         $PI . " ENTER XAXAX\n",
         $PI . " ENTER LANGUAGE = XAXAX\n",
         $PI . " JOB XAXAX\n",
@@ -88,27 +82,21 @@ sub getCommandarray {
         $PI . " LDPARM : PCL LCOLOREXTENSIONS = XAXAX\n",
         $PI . " LJOBINFO XAXAX\n",
         $PI . " LJOBINFO USERID = XAXAX\n",
-        $PI . " LJOBINFO HOSTID = XAXAX\n"
+        $PI . " LJOBINFO HOSTID = XAXAX\n",
     );
-    return (@cmdArray);
 }
 
 # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 # what to send to login ?
-sub getLogin {    # login procedure
-    my $this = shift;
-    @login = ("");
-    return (@login);
-}
+sub getLogin {('')}
 
 # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 # here we can test everything besides buffer overflows and format strings
-sub testMisc {
-    my $this = shift;
-    return ();
-}
+sub testMisc {()}
 
-sub usage {
-}
+sub usage {}
 
 1;
+
+# vim:sw=4:ts=4:sts=4:et:cc=80
+# End of file.

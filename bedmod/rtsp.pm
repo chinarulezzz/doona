@@ -1,59 +1,74 @@
 package bedmod::rtsp;
+
+use strict;
+use warnings;
+#use diiagnostics;
+
 use Socket;
 
-# This package is an extension to bed, to check
+# self package is an extension to bed, to check
 # for http server vulnerabilities.
 
 sub new{
-    my $this = {};
-    $this->{healthy}=undef;
-    bless $this;
-    return $this;
+    my $self = {
+        healthy => '',
+    };
+
+    bless $self;
 }
 
 sub init{
-    my $this = shift;
-    %special_cfg=@_;
+    my $self = shift;
+    my %args = @_;
 
-    $this->{proto}="tcp";
+    $self->{proto} = "tcp";
+    $self->{port}  = $args{p} || 554;
 
-    if ($special_cfg{'p'} eq "") {
-        $this->{port}='554';
-    } else {
-        $this->{port} = $special_cfg{'p'};
-    }
-    if ($special_cfg{'d'}) { return; }
-    die "RTSP server failed health check!\n" unless($this->health_check());
+    return if $args{d};
+
+    die "\nRTSP server failed health check!\n"
+        unless $self->health_check();
 }
 
 sub health_check {
-    my $this = shift;
-    $iaddr = inet_aton($this->{target})             || die "Unknown host: $this->{target}\n";
-    $paddr = sockaddr_in($this->{port}, $iaddr)     || die "getprotobyname: $!\n";
-    $proto = getprotobyname('tcp')                  || die "getprotobyname: $!\n";
-    socket(SOCKET, PF_INET, SOCK_STREAM, $proto)    || die "socket: $!\n";
-    connect(SOCKET, $paddr)                         || die "connection attempt failed: $!\n";
-    send(SOCKET, "DESCRIBE / RTSP/1.0\r\n\r\n", 0)      || die "HTTP request failed: $!\n";
+    my $self = shift;
+
+    my $iaddr = inet_aton($self->{target})
+        || die "\nUnknown host: $self->{target}\n";
+
+    my $paddr = sockaddr_in($self->{port}, $iaddr)
+        || die "\ngetprotobyname: $!\n";
+
+    my $proto = getprotobyname('tcp')
+        || die "\ngetprotobyname: $!\n";
+
+    socket(SOCKET, PF_INET, SOCK_STREAM, $proto)
+        || die "\nsocket: $!\n";
+
+    connect(SOCKET, $paddr)
+        || die "\nconnection attempt failed: $!\n";
+
+    send(SOCKET, "DESCRIBE / RTSP/1.0\r\n\r\n", 0)
+        || die "\nHTTP request failed: $!\n";
+
     my $resp = <SOCKET>;
-    if (!$this->{healthy}) {
-          if ($resp =~ /RTSP/) {
-              $this->{healthy}=$resp;
-          }
-          #      print "Set healthy: $resp";
+
+    if (!$self->{healthy}) {
+        $self->{healthy} = $resp if $resp =~ /RTSP/;
+        # print "Set healthy: $resp";
     }
     #print "DBG: Health resp: $resp\n";
-    return $resp =~ m/^$this->{healthy}$/;
+    return $resp =~ m/^$self->{healthy}$/;
 }
 
 sub getQuit{
-    return("\r\n\r\n");
+    ("\r\n\r\n");
 }
 
 sub getLoginarray {
-    my $this = shift;
-    @Loginarray = (
+    (
         "XAXAX\r\n\r\n",
-        " XAXAX RTSP/1.0\r\nCSeq: 1\r\n\r\n",
+        "XAXAX RTSP/1.0\r\nCSeq: 1\r\n\r\n",
         "XAXAX / RTSP/1.0\r\nCSeq: 1\r\n\r\n",
         "XAXAX rtsp://localhost/file.mpg\r\nCSeq: 1\r\n\r\n",
         "XAXAX rtsp://localhost/file.mpg RTSP/1.0\r\nCSeq: 1\r\n\r\n",
@@ -117,14 +132,11 @@ sub getLoginarray {
         "SET_PARAMETER rtsp://XAXAX/file.mpg RTSP/1.0\r\nCSeq: 1\r\n\r\n",
         "SET_PARAMETER rtsp://localhost/XAXAX RTSP/1.0\r\nCSeq: 1\r\n\r\n",
         "SET_PARAMETER rtsp://localhost/ RTSP/1.0\r\nCSeq: 1\r\nContent-type: text/parameters\r\n\r\nXAXAX: XAXAX\r\n",
-      );
-    return (@Loginarray);
+    );
 }
 
 sub getCommandarray {
-    my $this = shift;
-
-    @cmdArray = (
+    (
         "XAXAX: XAXAX\r\n\r\n",
         "Accept: XAXAX\r\n\r\n",
         "Accept-Encoding: XAXAX\r\n\r\n",
@@ -132,7 +144,7 @@ sub getCommandarray {
         "Accept-Charset: XAXAX\r\n\r\n",
         "Authorization: XAXAX\r\n\r\n",
         "Authorization: XAXAX\r\n\r\n",
-	"Authorization: Basic XAXAX\r\n\r\n",
+        "Authorization: Basic XAXAX\r\n\r\n",
         "Authorization XAXAX: Basic AAAAAA\r\n\r\n",
         "Authorization: XAXAX:foo\r\n\r\n",
         "Authorization: foo:XAXAX\r\n\r\n",
@@ -150,28 +162,25 @@ sub getCommandarray {
         "Transport: XAXAX\r\n\r\n",
         "Session: XAXAX\r\n\r\n",
         "User-Agent: XAXAX\r\n\r\n",
-      );
-    return(@cmdArray);
+    );
 }
 
 sub getLogin{
-    my $this = shift;
-    @login = (
-              "ANNOUNCE rtsp://localhost/file.mpg RTSP/1.0\r\nCSeq: 1\r\n",
-              "DESCRIBE rtsp://localhost/file.mpg RTSP/1.0\r\nCSeq: 1\r\n",
-              "DESCRIBE rtsp://localhost/file.mpg RTSP/1.0\r\n",
-              "PLAY rtsp://localhost/file.mpg RTSP/1.0\r\nCSeq: 1\r\n",
-              "PAUSE rtsp://localhost/file.mpg RTSP/1.0\r\nCSeq: 1\r\n",
-              "SETUP rtsp://localhost/file.mpg RTSP/1.0\r\nCSeq: 1\r\n",
-             );
-    return(@login);
+    (
+        "ANNOUNCE rtsp://localhost/file.mpg RTSP/1.0\r\nCSeq: 1\r\n",
+        "DESCRIBE rtsp://localhost/file.mpg RTSP/1.0\r\nCSeq: 1\r\n",
+        "DESCRIBE rtsp://localhost/file.mpg RTSP/1.0\r\n",
+        "PLAY rtsp://localhost/file.mpg RTSP/1.0\r\nCSeq: 1\r\n",
+        "PAUSE rtsp://localhost/file.mpg RTSP/1.0\r\nCSeq: 1\r\n",
+        "SETUP rtsp://localhost/file.mpg RTSP/1.0\r\nCSeq: 1\r\n",
+    );
 }
 
-sub testMisc{
-    return();
-}
+sub testMisc {()}
 
-sub usage {
-}
+sub usage {}
 
 1;
+
+# vim:sw=4:ts=4:sts=4:et:cc=80
+# End of file.

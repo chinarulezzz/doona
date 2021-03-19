@@ -1,74 +1,85 @@
 package bedmod::pop;
+
+use strict;
+use warnings;
+#use diagnostics;
+
 use Socket;
 
 # This package is an extension to bed, to check
 # for pop server vulnerabilities.
 
 sub new {
-    my $this = {};
-    $this->{username} = undef;    # specific for just this
-    $this->{password} = undef;    # module
-    bless $this;
-    return $this;
+    bless {
+        username => '',
+        password => '',
+    };
 }
 
 sub init {
-    my $this = shift;
-    %special_cfg = @_;
+    my $self = shift;
+    my %args = @_;
 
-    $this->{proto} = "tcp";
+    $self->{proto} = 'tcp';
+    $self->{port}  = $args{p} || 110;
 
-    if   ( $special_cfg{'p'} eq "" ) { $this->{port} = '110'; }
-    else                             { $this->{port} = $special_cfg{'p'}; }
+    $self->usage() unless $args{u} and $args{v};
 
-    if ( ( $special_cfg{'u'} eq "" ) || ( $special_cfg{'v'} eq "" ) ) {
-        &usage();
-        exit(1);
+    $self->{username} = $args{u};
+    $self->{password} = $args{v};
+    $self->{vrfy}     = "NOOP\r\n";
+
+    my $iaddr = inet_aton($self->{target})
+        || die "\nUnknown host: $self->{target}\n";
+
+    my $paddr = sockaddr_in($self->{port}, $iaddr)
+        || die "\ngetprotobyname: $!\n";
+
+    my $proto = getprotobyname('tcp')
+        || die "\ngetprotobyname: $!\n";
+
+    socket(SOCKET, PF_INET, SOCK_STREAM, $proto)
+        || die "\nsocket: $!\n";
+
+    connect(SOCKET, $paddr)
+        || die "\nconnection attempt failed: $!\n";
+
+    send(SOCKET, "USER $self->{username}\r\n", 0)
+        || die "\nUSER failed: $!\n";
+
+    my $recvbuf = <SOCKET>;
+    sleep 1;
+
+    send(SOCKET, "PASS $self->{password}\r\n", 0)
+        || die "\nPASS failed: $!\n";
+
+    $recvbuf = <SOCKET>;
+    if ($recvbuf =~ "-ERR") {
+        print "\nUsername or Password incorrect, can't login\n";
+        exit 1;
     }
 
-    $this->{username} = $special_cfg{'u'};
-    $this->{password} = $special_cfg{'v'};
-    $this->{vrfy}     = "NOOP\r\n";
-    $iaddr = inet_aton( $this->{target} ) || die "Unknown host: $this->{target}\n";
-    $paddr = sockaddr_in( $this->{port}, $iaddr ) || die "getprotobyname: $!\n";
-    $proto = getprotobyname('tcp') || die "getprotobyname: $!\n";
-    socket( SOCKET, PF_INET, SOCK_STREAM, $proto ) || die "socket: $!\n";
-    connect( SOCKET, $paddr ) || die "connection attempt failed: $!\n";
-    send( SOCKET, "USER $this->{username}\r\n", 0 ) || die "USER failed: $!\n";
-    $recvbuf = <SOCKET>;
-    sleep(1);
-    send( SOCKET, "PASS $this->{password}\r\n", 0 ) || die "PASS failed: $!\n";
-
-    $recvbuf = <SOCKET>;
-    if ( $recvbuf =~ "-ERR" ) {
-        print("Username or Password incorrect, can't login\n");
-        exit(1);
-    }
-    send( SOCKET, "QUIT\r\n", 0 )
-
+    send(SOCKET, "QUIT\r\n", 0);
 }
 
 sub getQuit {
-    return ("QUIT\r\n");
+    ("QUIT\r\n");
 }
 
 sub getLoginarray {
-    my $this = shift;
-    @Loginarray = (
+    my $self = shift;
+    (
         "USER XAXAX\r\n",
-        "USER $this->{username}\r\nPASS XAXAX\r\n",
+        "USER $self->{username}\r\nPASS XAXAX\r\n",
         "APOP XAXAX aaa\r\n",
-        "APOP $this->{username} XAXAX\r\n"
+        "APOP $self->{username} XAXAX\r\n"
     );
-    return (@Loginarray);
 }
 
 sub getCommandarray {
-    my $this = shift;
-
     # the XAXAX will be replaced with the buffer overflow / format string
     # just comment them out if you don't like them..
-    @cmdArray = (
+    (
         "LIST XAXAX\r\n",
         "STAT XAXAX\r\n",
         "NOOP XAXAX\r\n",
@@ -80,22 +91,20 @@ sub getCommandarray {
         "TOP 1 XAXAX\r\n",
         "UIDL XAXAX\r\n",
     );
-    return (@cmdArray);
 }
 
-sub getLogin {    # login procedure
-    my $this = shift;
-    @login = ( "USER $this->{username}\r\n", "PASS $this->{password}\r\n" );
-    return (@login);
+sub getLogin {
+    my $self = shift;
+    (
+        "USER $self->{username}\r\n",
+        "PASS $self->{password}\r\n",
+    );
 }
 
-sub testMisc {
-    return ();
-}
+sub testMisc {()}
 
 sub usage {
     print qq~ Parameters for the POP plugin:
-
     -u <username>
     -v <password>
 
@@ -103,3 +112,6 @@ sub usage {
 }
 
 1;
+
+# vim:sw=4:ts=4:sts=4:et:cc=80
+# End of file.
